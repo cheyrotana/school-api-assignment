@@ -55,38 +55,58 @@ export const createCourse = async (req, res) => {
  *         name: limit
  *         schema: { type: integer, default: 10 }
  *         description: Number of items per page
+ *       - in: query
+ *         name: sort
+ *         schema: { type: string, enum: [asc, desc], default: asc }
+ *         description: Sort order by ID
+ *       - in: query
+ *         name: populate
+ *         schema:
+ *           type: string
+ *           enum: [none, teacher]
+ *           default: none
+ *         description: Use "teacher" to include full Teacher details (id, name, department)
  *     responses:
  *       200:
  *         description: List of courses
  */
 export const getAllCourses = async (req, res) => {
-
-    // take certain amount at a time
     const limit = parseInt(req.query.limit) || 10;
-    // which page to take
     const page = parseInt(req.query.page) || 1;
-
-    const total = await db.Course.count();
-
-    try {
-        const courses = await db.Course.findAll(
-            {
-                // include: [db.Student, db.Teacher],
-                limit: limit, offset: (page - 1) * limit
-            }
-        );
-        res.json({
-            meta: {
-                totalItems: total,
-                page: page,
-                totalPages: Math.ceil(total / limit),
-            },
-            data: courses,
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    const sort = req.query.sort === 'desc' ? 'DESC' : 'ASC';
+    const populate = (req.query.populate || 'none').toLowerCase();
+  
+    const include = [];
+  
+    if (populate === 'teacher') {
+      include.push({
+        model: db.Teacher,
+        attributes: ['id', 'name', 'department'],
+      });
     }
-};
+  
+    try {
+      const total = await db.Course.count();
+  
+      const courses = await db.Course.findAll({
+        limit,
+        offset: (page - 1) * limit,
+        order: [['id', sort]],
+        include,
+      });
+  
+      res.json({
+        meta: {
+          totalItems: total,
+          page,
+          totalPages: Math.ceil(total / limit),
+        },
+        data: courses,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };  
 
 /**
  * @swagger

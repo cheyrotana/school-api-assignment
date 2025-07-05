@@ -44,18 +44,67 @@ export const createTeacher = async (req, res) => {
  *   get:
  *     summary: Get all teachers
  *     tags: [Teachers]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10 }
+ *         description: Number of teachers per page
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *         description: Page number
+ *       - in: query
+ *         name: sort
+ *         schema: { type: string, enum: [asc, desc], default: asc }
+ *         description: Sort teachers by ID
+ *       - in: query
+ *         name: populate
+ *         schema:
+ *           type: string
+ *           enum: [none, courses]
+ *           default: none
+ *         description: Use "courses" to include courses taught by each teacher
  *     responses:
  *       200:
  *         description: List of teachers
  */
 export const getAllTeachers = async (req, res) => {
-    try {
-        const teachers = await db.Teacher.findAll({ include: db.Course });
-        res.json(teachers);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    const limit = parseInt(req.query.limit) || 10;
+    const page = parseInt(req.query.page) || 1;
+    const sort = req.query.sort === 'desc' ? 'DESC' : 'ASC';
+    const populate = (req.query.populate || 'none').toLowerCase();
+  
+    const include = [];
+  
+    if (populate === 'courses') {
+      include.push({
+        model: db.Course,
+        attributes: ['id', 'title', 'description'],
+      });
     }
-};
+  
+    try {
+      const total = await db.Teacher.count();
+  
+      const teachers = await db.Teacher.findAll({
+        limit,
+        offset: (page - 1) * limit,
+        order: [['id', sort]],
+        include,
+      });
+  
+      res.json({
+        meta: {
+          totalItems: total,
+          page,
+          totalPages: Math.ceil(total / limit),
+        },
+        data: teachers,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+};  
 
 /**
  * @swagger
