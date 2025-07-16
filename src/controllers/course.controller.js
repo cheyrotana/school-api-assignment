@@ -82,7 +82,7 @@ export const getAllCourses = async (req, res) => {
       include.push({
         model: db.Teacher,
         attributes: ['id', 'name', 'department'],
-      });
+      }); 
     }
   
     try {
